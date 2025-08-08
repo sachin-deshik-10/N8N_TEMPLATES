@@ -1,28 +1,90 @@
-## Summary
+## 📋 Pull Request Description
 
-<!--
-Describe what the PR does and how to test.
-Photos and videos are recommended.
--->
+Brief description of changes made in this PR.
 
-## Related Linear tickets, Github issues, and Community forum posts
+## 🔗 Related Issue
 
-<!--
-Include links to **Linear ticket** or Github issue or Community forum post.
-Important in order to close *automatically* and provide context to reviewers.
--->
-<!-- Use "closes #<issue-number>", "fixes #<issue-number>", or "resolves #<issue-number>" to automatically close issues when the PR is merged. -->
+Fixes #(issue number)
 
+## 🎯 Type of Change
 
-## Review / Merge checklist
+- [ ] 🔧 New template submission
+- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
+- [ ] ✨ New feature (non-breaking change which adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 📖 Documentation update
+- [ ] 🧪 Test addition or improvement
+- [ ] 🔄 Refactoring (no functional changes)
 
-- [ ] PR title and summary are descriptive. ([conventions](../blob/master/.github/pull_request_title_conventions.md)) <!--
-   **Remember, the title automatically goes into the changelog.
-   Use `(no-changelog)` otherwise.**
--->
-- [ ] [Docs updated](https://github.com/n8n-io/n8n-docs) or follow-up ticket created.
-- [ ] Tests included. <!--
-   A bug is not considered fixed, unless a test is added to prevent it from happening again.
-   A feature is not complete without tests.
--->
-- [ ] PR Labeled with `release/backport` (if the PR is an urgent fix that needs to be backported)
+## 📁 Template Information (if applicable)
+
+**Template Name:**
+**Category:**
+**Template Path:** `templates/category/template-name/`
+
+## ✅ Checklist
+
+### General Requirements
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+
+### Template-Specific Requirements (if applicable)
+- [ ] Template includes `workflow.json` file
+- [ ] Template includes comprehensive `README.md`
+- [ ] Template includes `.env.example` file
+- [ ] Template includes proper error handling
+- [ ] No hardcoded credentials or sensitive data
+- [ ] Screenshots provided (if visual changes)
+- [ ] Test data included (if applicable)
+- [ ] Documentation is clear and complete
+
+### Testing
+- [ ] I have tested this template/change locally
+- [ ] Template works with sample data
+- [ ] Error handling has been verified
+- [ ] All node configurations are correct
+- [ ] Documentation accuracy has been validated
+
+## 🧪 Testing Details
+
+Describe how you tested your changes:
+
+1. **Test Environment:**
+2. **Test Data Used:**
+3. **Test Results:**
+
+## 📷 Screenshots
+
+If applicable, add screenshots to demonstrate:
+1. Workflow overview
+2. Configuration steps
+3. Sample output
+4. Before/after comparisons
+
+## 🔄 Workflow Details (for template submissions)
+
+**Trigger:**
+**Main Process:**
+**Output:**
+**Error Handling:**
+
+## 📖 Documentation Changes
+
+- [ ] README.md updated
+- [ ] API documentation updated
+- [ ] Code comments added/updated
+- [ ] Template documentation added
+
+## 🔍 Additional Notes
+
+Any additional information about the changes:
+
+## 📋 Post-Merge Checklist
+
+- [ ] Update version numbers (if applicable)
+- [ ] Update changelog
+- [ ] Verify CI/CD passes
+- [ ] Test in production environment

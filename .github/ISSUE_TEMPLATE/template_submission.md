@@ -8,9 +8,9 @@ assignees: ''
 
 ## 📋 Template Information
 
-**Template Name:** 
+**Template Name:**
 **Category:** (e.g., api-integrations, ai-ml, data-processing)
-**Description:** 
+**Description:**
 
 ## 🎯 Template Purpose
 

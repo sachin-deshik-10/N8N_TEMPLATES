@@ -12,8 +12,8 @@ A clear and concise description of what the bug is.
 
 ## 📁 Template Information
 
-**Template Name:** 
-**Template Category:** 
+**Template Name:**
+**Template Category:**
 **Template Path:** `templates/category/template-name/`
 
 ## 🔄 Steps to Reproduce
@@ -37,9 +37,9 @@ If applicable, add screenshots to help explain your problem.
 
 ## 🔧 Environment
 
-**n8n Version:** 
-**Node.js Version:** 
-**Operating System:** 
+**n8n Version:**
+**Node.js Version:**
+**Operating System:**
 **Browser:** (if applicable)
 
 ## 📋 Workflow Configuration
