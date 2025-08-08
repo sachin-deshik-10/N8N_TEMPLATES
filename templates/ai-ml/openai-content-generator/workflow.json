@@ -1,0 +1,292 @@
+{
+  "name": "OpenAI Content Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-content",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate and prepare content generation request\nconst input = $json;\n\n// Default values\nconst defaults = {\n  content_type: 'blog_post',\n  tone: 'professional',\n  word_count: 500,\n  temperature: 0.7,\n  max_tokens: 2000,\n  model: 'gpt-4'\n};\n\n// Merge with defaults\nconst request = { ...defaults, ...input };\n\n// Validate required fields\nif (!request.topic) {\n  throw new Error('Topic is required');\n}\n\n// Generate dynamic prompt based on content type\nfunction generatePrompt(req) {\n  const prompts = {\n    blog_post: `Write a comprehensive blog post about \"${req.topic}\".\n                Target audience: ${req.target_audience || 'general audience'}\n                Tone: ${req.tone}\n                Word count: approximately ${req.word_count} words\n                ${req.seo_keywords ? `Include SEO keywords: ${req.seo_keywords.join(', ')}` : ''}\n                ${req.include_sections ? `Include sections: ${req.include_sections.join(', ')}` : ''}\n                Format: Markdown with proper headings`,\n                \n    social_media: `Create an engaging ${req.platform || 'social media'} post about \"${req.topic}\".\n                   Tone: ${req.tone}\n                   ${req.include_hashtags ? 'Include relevant hashtags' : ''}\n                   ${req.character_limit ? `Limit: ${req.character_limit} characters` : ''}\n                   Make it shareable and engaging`,\n                   \n    product_description: `Write a compelling product description for \"${req.product_name || req.topic}\".\n                         Key features: ${req.key_features ? req.key_features.join(', ') : 'highlight main benefits'}\n                         Target audience: ${req.target_audience || 'potential customers'}\n                         Tone: ${req.tone}\n                         Word count: approximately ${req.word_count} words\n                         Focus on benefits and value proposition`,\n                         \n    email: `Write a ${req.email_type || 'marketing'} email about \"${req.topic}\".\n            Subject line: Create an engaging subject line\n            Tone: ${req.tone}\n            Target audience: ${req.target_audience || 'subscribers'}\n            Word count: approximately ${req.word_count} words\n            Include clear call-to-action`,\n            \n    technical_documentation: `Write technical documentation for \"${req.topic}\".\n                             Audience: ${req.target_audience || 'developers'}\n                             Include: overview, implementation details, examples\n                             Format: Markdown with code blocks\n                             Tone: clear and instructional`\n  };\n  \n  return prompts[req.content_type] || prompts.blog_post;\n}\n\nrequest.prompt = generatePrompt(request);\nrequest.timestamp = new Date().toISOString();\nrequest.request_id = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\nreturn { json: request };"
+      },
+      "id": "prepare-request",
+      "name": "Prepare Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$env.ENABLE_MODERATION || 'true'}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "moderation-check",
+      "name": "Moderation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "moderate",
+        "input": "={{$json.prompt}}"
+      },
+      "id": "openai-moderation",
+      "name": "OpenAI Moderation",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.flagged}}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "content-safety-check",
+      "name": "Content Safety Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "complete",
+        "model": "={{$json.model}}",
+        "prompt": "={{$json.prompt}}",
+        "options": {
+          "temperature": "={{$json.temperature}}",
+          "maxTokens": "={{$json.max_tokens}}"
+        }
+      },
+      "id": "generate-content",
+      "name": "Generate Content",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1340, 160],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process and validate generated content\nconst request = $('prepare-request').first().json;\nconst response = $json;\n\n// Extract generated content\nconst generatedContent = response.choices[0].text.trim();\n\n// Content quality validation\nfunction validateContent(content, requirements) {\n  const wordCount = content.split(' ').length;\n  const targetWordCount = requirements.word_count || 500;\n  const wordCountScore = Math.min(1, wordCount / (targetWordCount * 0.8));\n  \n  // Basic quality checks\n  const hasGoodLength = wordCount >= targetWordCount * 0.7;\n  const hasStructure = content.includes('\\n') || content.includes('.');\n  const notTruncated = !content.endsWith('...');\n  \n  const qualityScore = (wordCountScore + (hasGoodLength ? 1 : 0) + (hasStructure ? 1 : 0) + (notTruncated ? 1 : 0)) / 4;\n  \n  return {\n    score: qualityScore,\n    word_count: wordCount,\n    target_word_count: targetWordCount,\n    has_good_length: hasGoodLength,\n    has_structure: hasStructure,\n    not_truncated: notTruncated,\n    approved: qualityScore >= 0.7\n  };\n}\n\n// SEO analysis (basic)\nfunction analyzeSEO(content, keywords) {\n  if (!keywords || !Array.isArray(keywords)) return { score: 1, details: 'No keywords specified' };\n  \n  const contentLower = content.toLowerCase();\n  const keywordMatches = keywords.filter(keyword => \n    contentLower.includes(keyword.toLowerCase())\n  );\n  \n  const keywordScore = keywordMatches.length / keywords.length;\n  \n  return {\n    score: keywordScore,\n    keywords_found: keywordMatches,\n    keywords_missing: keywords.filter(k => !keywordMatches.includes(k)),\n    keyword_density: keywordMatches.length / content.split(' ').length\n  };\n}\n\n// Perform validations\nconst qualityCheck = validateContent(generatedContent, request);\nconst seoCheck = analyzeSEO(generatedContent, request.seo_keywords);\n\n// Calculate token usage cost (approximate)\nconst inputTokens = Math.ceil(request.prompt.length / 4);\nconst outputTokens = response.usage?.total_tokens || Math.ceil(generatedContent.length / 4);\nconst estimatedCost = (inputTokens * 0.00003) + (outputTokens * 0.00006); // GPT-4 pricing\n\n// Prepare final response\nconst result = {\n  request_id: request.request_id,\n  content_type: request.content_type,\n  topic: request.topic,\n  generated_content: generatedContent,\n  metadata: {\n    model: request.model,\n    temperature: request.temperature,\n    generated_at: new Date().toISOString(),\n    processing_time: Date.now() - new Date(request.timestamp).getTime()\n  },\n  quality_check: qualityCheck,\n  seo_analysis: seoCheck,\n  token_usage: {\n    input_tokens: inputTokens,\n    output_tokens: outputTokens,\n    total_tokens: inputTokens + outputTokens,\n    estimated_cost_usd: estimatedCost\n  },\n  status: qualityCheck.approved ? 'approved' : 'needs_review'\n};\n\nreturn { json: result };"
+      },
+      "id": "process-content",
+      "name": "Process Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equal",
+              "value2": "approved"
+            }
+          ]
+        }
+      },
+      "id": "quality-gate",
+      "name": "Quality Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 160]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format final response\nconst data = $json;\n\n// Create different output formats\nconst outputs = {\n  json: data,\n  \n  markdown: `# ${data.topic}\\n\\n${data.generated_content}\\n\\n---\\n\\n**Generated by**: ${data.metadata.model}\\n**Quality Score**: ${Math.round(data.quality_check.score * 100)}%\\n**Word Count**: ${data.quality_check.word_count}\\n**Generated**: ${data.metadata.generated_at}`,\n  \n  html: `<!DOCTYPE html>\\n<html>\\n<head>\\n<title>${data.topic}</title>\\n<meta name=\"description\" content=\"${data.generated_content.substring(0, 160)}...\">\\n</head>\\n<body>\\n<h1>${data.topic}</h1>\\n${data.generated_content.replace(/\\n/g, '<br>')}\\n</body>\\n</html>`,\n  \n  text: data.generated_content\n};\n\n// Add success metrics\nconst response = {\n  success: true,\n  data: outputs,\n  metadata: data.metadata,\n  quality_metrics: {\n    quality_score: data.quality_check.score,\n    word_count: data.quality_check.word_count,\n    seo_score: data.seo_analysis.score,\n    cost: data.token_usage.estimated_cost_usd\n  }\n};\n\nreturn { json: response };"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 120]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle quality issues and regeneration\nconst data = $json;\n\n// Analyze quality issues\nconst issues = [];\nif (!data.quality_check.has_good_length) issues.push('Content too short');\nif (!data.quality_check.has_structure) issues.push('Lacks proper structure');\nif (data.quality_check.not_truncated === false) issues.push('Content appears truncated');\nif (data.seo_analysis.score < 0.5) issues.push('Poor SEO keyword coverage');\n\nconst response = {\n  success: false,\n  status: 'quality_issues',\n  issues: issues,\n  data: data,\n  suggestion: 'Content needs review or regeneration with improved prompts'\n};\n\nreturn { json: response };"
+      },
+      "id": "handle-quality-issues",
+      "name": "Handle Quality Issues",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle moderation failure\nconst moderationResult = $json;\n\nconst response = {\n  success: false,\n  status: 'content_blocked',\n  message: 'Content blocked by moderation system',\n  categories: moderationResult.categories,\n  category_scores: moderationResult.category_scores,\n  suggestion: 'Please revise your content request to comply with content policies'\n};\n\nreturn { json: response };"
+      },
+      "id": "handle-moderation-failure",
+      "name": "Handle Moderation Failure",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle errors and provide helpful feedback\nconst error = $json;\n\nlet response = {\n  success: false,\n  status: 'error',\n  message: 'Content generation failed'\n};\n\n// Specific error handling\nif (error.message?.includes('rate limit')) {\n  response.message = 'Rate limit exceeded. Please try again later.';\n  response.retry_after = 60;\n} else if (error.message?.includes('invalid request')) {\n  response.message = 'Invalid request parameters. Please check your input.';\n} else if (error.message?.includes('insufficient_quota')) {\n  response.message = 'API quota exceeded. Please check your OpenAI billing.';\n} else {\n  response.message = error.message || 'Unknown error occurred';\n}\n\nresponse.error_details = error;\nresponse.timestamp = new Date().toISOString();\n\nreturn { json: response };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 340]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Request": {
+      "main": [
+        [
+          {
+            "node": "Moderation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Moderation Check": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Moderation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Moderation": {
+      "main": [
+        [
+          {
+            "node": "Content Safety Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Safety Check": {
+      "main": [
+        [
+          {
+            "node": "Generate Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Moderation Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Content": {
+      "main": [
+        [
+          {
+            "node": "Process Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Content": {
+      "main": [
+        [
+          {
+            "node": "Quality Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Gate": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Quality Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "id": "openai-content-generator",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": ["ai", "openai", "content-generation", "gpt", "automation"]
+}
